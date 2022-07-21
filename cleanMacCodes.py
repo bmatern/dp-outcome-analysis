@@ -14,6 +14,7 @@ def parseArgs():
     parser.add_argument("-v", "--verbose", help="verbose operation", action="store_true")
     parser.add_argument("-x", "--excel", required=True, help="excel input file name. Row 1=Headers. Row2:X=HLA Typings", type=str)
     parser.add_argument("-c", "--columns", required=True, help="Columns that contain HLA typings with MAC Codes, separate by commas ex. G,H", type=str)
+    parser.add_argument("-m", "--mode", required=False, help="Mode of operation to export all alleles or just the first one, options ('ALL','FIRST')", default='ALL', type=str)
 
     args = parser.parse_args()
 
@@ -39,8 +40,30 @@ def convertAlleleString(cellData=None, locus=None, ardObject=None):
 
         if (len(nomenclatureTokens)==2 and isInteger(nomenclatureTokens[0]) and nomenclatureTokens[1] == 'XX'):
             #print('This is an XX allele.')
-            return cellData
+            expandedXalleles = ardObject.redux_gl(alleleString, 'lgx').split('/')
+
+            # Get rid of the locus again. Not sure if this is correct.
+            for alleleIndex, allele in enumerate(expandedXalleles):
+                expandedXalleles[alleleIndex] = allele.split('*')[1]
+
+            return '|'.join(expandedXalleles)
         elif (len(nomenclatureTokens) == 2 and isInteger(nomenclatureTokens[0]) and not isInteger(nomenclatureTokens[1]) and nomenclatureTokens[1] != 'XX'):
+            # is it a P group?
+            # I suppose this could be repeated for G group.
+            # This is only checking the second field to look for a P group, ex. "23:01P"
+            if(alleleString.endswith('P') and isInteger(nomenclatureTokens[1][:-1])):
+                print('P group:' + str(alleleString))
+                # TODO: This actually doesnt work, the expansion of P groups does not get the entire list of possible alleles. This excludes some of the (rare) allele options.
+                expandedPalleles = ardObject.redux_gl(alleleString, 'lgx').split('/')
+
+                # Get rid of the locus again. Not sure if this is correct.
+                for alleleIndex, allele in enumerate(expandedPalleles):
+                    expandedPalleles[alleleIndex] = allele.split('*')[1]
+
+                return '|'.join(expandedPalleles)
+
+
+
             #print('This is a MAC Code.')
             expandMac = ardObject.expand_mac(alleleString)
 
@@ -53,8 +76,12 @@ def convertAlleleString(cellData=None, locus=None, ardObject=None):
             # This should be a normal allele. Re-return it.
             return cellData
 
-    except Exception:
+    except Exception as e:
+        print('Exception:' + str(e))
         raise Exception('What should i do with this cellData:' + str(cellData))
+        #expandMac = ardObject.expand_mac(alleleString)
+        #print('Warning!!!!!!!!! this cell data had an issue, i will not handle it:' + str(cellData))
+
 
 def loadExcelFile(excelFileName=None):
     if (verbose):
@@ -77,7 +104,7 @@ def getArdObject():
     return ard
 
 
-def parseLocusName(rawLocusName=None, delimiter='_'):
+def parseLocusName(rawLocusName=None, delimiter='-'):
     locusTokens = str(rawLocusName).strip().upper().split(delimiter)
     locus = locusTokens[0] + '-' + locusTokens[1]
     return locus
@@ -113,7 +140,16 @@ def cleanMacCodes(excelFileName=None, columns=None, delimiter=',', headers=True)
             cellData=firstSheet[str(columnName) + str(excelRowNumber)].value
             #print('Found Data:' + str(cellData))
             cleanedCellData = convertAlleleString(cellData=cellData, locus=locusName, ardObject=ardObject)
-            firstSheet[str(columnName) + str(excelRowNumber)] =cleanedCellData
+
+            if(str(args.mode).upper() == 'FIRST'):
+                firstSheet[str(columnName) + str(excelRowNumber)] = cleanedCellData.split('|')[0]
+            elif(str(args.mode).upper() == 'ALL'):
+                firstSheet[str(columnName) + str(excelRowNumber)] = cleanedCellData
+            else:
+                raise Exception ('I expected a mode of FIRST or ALL, something went wrong')
+
+
+
 
     return excelData
 
