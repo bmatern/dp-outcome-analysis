@@ -105,9 +105,14 @@ def getArdObject():
 
 
 def parseLocusName(rawLocusName=None, delimiter='-'):
-    locusTokens = str(rawLocusName).strip().upper().split(delimiter)
-    locus = locusTokens[0] + '-' + locusTokens[1]
-    return locus
+    try:
+        locusTokens = str(rawLocusName).strip().upper().split(delimiter)
+        locus = locusTokens[0] + '-' + locusTokens[1]
+        return locus
+    except Exception as e:
+        print('exception:' + str(e))
+        print('rawLocusName:' + str(rawLocusName))
+        raise e
 
 
 def cleanMacCodes(excelFileName=None, columns=None, delimiter=',', headers=True):
