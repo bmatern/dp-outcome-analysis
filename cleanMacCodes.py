@@ -15,6 +15,7 @@ def parseArgs():
     parser.add_argument("-x", "--excel", required=True, help="excel input file name. Row 1=Headers. Row2:X=HLA Typings", type=str)
     parser.add_argument("-c", "--columns", required=True, help="Columns that contain HLA typings with MAC Codes, separate by commas ex. G,H", type=str)
     parser.add_argument("-m", "--mode", required=False, help="Mode of operation to export all alleles or just the first one, options ('ALL','FIRST')", default='ALL', type=str)
+    parser.add_argument("-t", "--twofield", help="Reduce all results to two field typing", action="store_true")
 
     args = parser.parse_args()
 
@@ -26,6 +27,18 @@ def isInteger(text=None):
         return True
     except ValueError:
         return False
+
+
+def reduceFields(cellData=None):
+    if not args.twofield:
+        return cellData
+    else:
+        tokens = cellData.split(':')
+        if len(tokens) > 2 :
+            return tokens[0] + ':' + tokens[1]
+        else:
+            return cellData
+
 
 def convertAlleleString(cellData=None, locus=None, ardObject=None):
     try:
@@ -74,7 +87,7 @@ def convertAlleleString(cellData=None, locus=None, ardObject=None):
             return '|'.join(expandMac)
         else:
             # This should be a normal allele. Re-return it.
-            return cellData
+            return reduceFields(cellData)
 
     except Exception as e:
         print('Exception:' + str(e))
